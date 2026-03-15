@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Logs
+*.log
+/tmp/bagua_*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
