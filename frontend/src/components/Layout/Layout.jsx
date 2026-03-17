@@ -11,6 +11,7 @@ const NAV = [
   { path: '/qimen',      icon: '✦',  label: '奇门',     en: 'QiMen' },
   { path: '/fengshui',   icon: '◎',  label: '风水',     en: 'FengShui' },
   { path: '/date-select',icon: '◈',  label: '择日',     en: 'DateSelect' },
+  { path: '/ziwei',      icon: '☆',  label: '紫微',     en: 'ZiWei' },
   { path: '/knowledge',  icon: '⊞',  label: '知识库',   en: 'Knowledge' },
 ]
 

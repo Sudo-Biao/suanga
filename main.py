@@ -18,6 +18,8 @@ from api.fengshui      import router as fengshui_router
 from api.date_selection import router as date_router
 from api.knowledge     import router as knowledge_router
 from api.agent         import router as agent_router
+from api.models        import router as models_router
+from api.ziwei         import router as ziwei_router
 
 # ─────────────────────────────────────────────────────────────
 # App
@@ -59,6 +61,8 @@ app.include_router(fengshui_router,   prefix="/api/v1")
 app.include_router(date_router,       prefix="/api/v1")
 app.include_router(knowledge_router,  prefix="/api/v1")
 app.include_router(agent_router,      prefix="/api/v1")
+app.include_router(models_router,     prefix="/api/v1")
+app.include_router(ziwei_router,      prefix="/api/v1")
 
 # ─────────────────────────────────────────────────────────────
 # Root + health check

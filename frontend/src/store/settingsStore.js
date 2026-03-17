@@ -13,10 +13,12 @@ export const useSettingsStore = create(
       apiBaseUrl: 'http://localhost:8888',
 
       // LLM configuration
-      llmProvider: 'anthropic',   // 'anthropic' | 'deepseek' | 'openai' | 'moonshot'
+      llmProvider: 'anthropic',   // 'anthropic' | 'deepseek' | 'openai' | 'moonshot' | 'gemini'
       llmKey: '',                  // API key — stored in persisted store
       llmBaseUrl: '',              // override base URL (empty = use provider default)
       llmModel: 'claude-sonnet-4-6',  // model name
+      llmStyle: 'anthropic',            // api style: anthropic | openai | gemini
+      llmCustomName: '',                // display name for custom provider
 
       // Theme
       theme: 'dark',
@@ -35,6 +37,8 @@ export const useSettingsStore = create(
       setLlmKey:        (k)   => set({ llmKey: k }),
       setLlmBaseUrl:    (u)   => set({ llmBaseUrl: u }),
       setLlmModel:      (m)   => set({ llmModel: m }),
+      setLlmStyle:      (v)   => set({ llmStyle: v }),
+      setLlmCustomName: (n)   => set({ llmCustomName: n }),
       setTheme:         (t)   => set({ theme: t }),
       setAccentColor:   (c)   => set({ accentColor: c }),
       setDefaultGender: (g)   => set({ defaultGender: g }),
@@ -42,7 +46,7 @@ export const useSettingsStore = create(
       setAnimationsEnabled: (v) => set({ animationsEnabled: v }),
       resetAll: () => set({
         apiBaseUrl: 'http://localhost:8888',
-        llmProvider: 'anthropic', llmKey: '', llmBaseUrl: '', llmModel: 'claude-sonnet-4-6',
+        llmProvider: 'anthropic', llmKey: '', llmBaseUrl: '', llmModel: 'claude-sonnet-4-6', llmStyle: 'anthropic', llmCustomName: '',
         theme: 'dark', accentColor: 'red',
         defaultGender: 'male', compactMode: false, animationsEnabled: true,
       }),

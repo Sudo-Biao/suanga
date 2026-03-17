@@ -9,6 +9,7 @@ import LiuYaoPage     from './pages/LiuYao/LiuYaoPage'
 import QiMenPage      from './pages/QiMen/QiMenPage'
 import FengShuiPage   from './pages/FengShui/FengShuiPage'
 import DateSelectPage from './pages/DateSelection/DateSelectPage'
+import ZiWeiPage      from './pages/ZiWei/ZiWeiPage'
 import KnowledgePage  from './pages/Knowledge/KnowledgePage'
 import AgentPage      from './pages/Agent/AgentPage'
 import SettingsPage   from './pages/Settings/SettingsPage'
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/qimen"         element={<QiMenPage />} />
           <Route path="/fengshui"      element={<FengShuiPage />} />
           <Route path="/date-select"   element={<DateSelectPage />} />
+          <Route path="/ziwei"         element={<ZiWeiPage />} />
           <Route path="/knowledge"     element={<KnowledgePage />} />
           <Route path="/settings"      element={<SettingsPage />} />
         </Routes>

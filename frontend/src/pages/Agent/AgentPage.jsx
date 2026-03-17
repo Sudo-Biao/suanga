@@ -29,8 +29,10 @@ const STEP_LABELS = {
 }
 
 export default function AgentPage() {
-  const { apiBaseUrl, llmProvider, llmKey, llmBaseUrl, llmModel } = useSettingsStore()
-  const PROVIDER_DEFAULTS = { anthropic:'claude-sonnet-4-6', deepseek:'deepseek-chat', openai:'gpt-4o', moonshot:'moonshot-v1-8k' }
+  const { apiBaseUrl, llmProvider, llmKey, llmBaseUrl, llmModel, llmStyle } = useSettingsStore()
+  const PROVIDER_DEFAULTS = { anthropic:'claude-sonnet-4-6', deepseek:'deepseek-chat', openai:'gpt-4o', moonshot:'moonshot-v1-8k', gemini:'gemini-2.0-flash' }
+  const PROVIDER_STYLES    = { anthropic:'anthropic', deepseek:'openai', openai:'openai', moonshot:'openai', gemini:'gemini' }
+  const effectiveStyle = llmStyle || PROVIDER_STYLES[llmProvider] || 'openai'
   const effectiveModel = llmModel || PROVIDER_DEFAULTS[llmProvider] || 'claude-sonnet-4-6'
   const { notify } = useNotifyStore()
 
@@ -105,6 +107,7 @@ export default function AgentPage() {
           'X-LLM-Provider': llmProvider || 'anthropic',
           'X-LLM-Base-Url': llmBaseUrl.trim() || '',
           'X-LLM-Model': effectiveModel,
+          'X-LLM-Style': effectiveStyle,
         },
         body: JSON.stringify(body),
         signal: abortRef.current.signal,

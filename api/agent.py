@@ -49,26 +49,67 @@ PROVIDER_DEFAULTS = {
         "model":    "moonshot-v1-8k",
         "style":    "openai",
     },
+    "gemini": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "model":    "gemini-2.0-flash",
+        "style":    "gemini",
+    },
 }
 
 
 def _get_llm_config(request: Request) -> dict:
-    """Read LLM config from request headers."""
+    """
+    Read LLM config from request headers.
+
+    Headers:
+      X-LLM-Provider  — known id (anthropic/openai/deepseek/moonshot/gemini)
+                        OR any string label for a custom provider
+      X-LLM-Key       — API key
+      X-LLM-Base-Url  — full base URL (required for custom providers)
+      X-LLM-Model     — model name
+      X-LLM-Style     — api style: anthropic | openai | gemini
+                        (auto-detected from provider if omitted)
+    """
     provider = (request.headers.get("X-LLM-Provider") or "anthropic").lower().strip()
     key      = (request.headers.get("X-LLM-Key") or "").strip()
     base_url = (request.headers.get("X-LLM-Base-Url") or "").strip()
     model    = (request.headers.get("X-LLM-Model") or "").strip()
+    style_hdr = (request.headers.get("X-LLM-Style") or "").strip().lower()
 
-    if provider not in PROVIDER_DEFAULTS:
-        provider = "anthropic"
+    if provider in PROVIDER_DEFAULTS:
+        # Known preset provider
+        defaults = PROVIDER_DEFAULTS[provider]
+        resolved_style    = style_hdr or defaults["style"]
+        resolved_base_url = base_url  or defaults["base_url"]
+        resolved_model    = model     or defaults["model"]
+    else:
+        # Custom / unknown provider — trust whatever the frontend sends
+        # Style: use header if set, else default to openai-compatible
+        resolved_style = style_hdr or "openai"
+        resolved_model = model or ""
 
-    defaults = PROVIDER_DEFAULTS[provider]
+        # For OpenAI-compatible providers, base_url is a prefix like
+        # https://open.bigmodel.cn/api/paas/v4
+        # The actual chat endpoint must be …/chat/completions.
+        # Append it automatically if missing, so users only need to set the base.
+        if base_url:
+            stripped = base_url.rstrip("/")
+            if resolved_style == "openai" and not stripped.endswith("/chat/completions"):
+                resolved_base_url = stripped + "/chat/completions"
+            else:
+                resolved_base_url = stripped
+        else:
+            resolved_base_url = ""
+
+    # Gemini: keep base_url as the domain prefix, model is spliced in _stream_gemini
+    # (nothing special needed here, _stream_gemini handles the URL template itself)
+
     return {
         "provider": provider,
         "key":      key,
-        "base_url": base_url or defaults["base_url"],
-        "model":    model    or defaults["model"],
-        "style":    defaults["style"],
+        "base_url": resolved_base_url,
+        "model":    resolved_model,
+        "style":    resolved_style,
     }
 
 
@@ -162,6 +203,71 @@ async def _stream_openai(cfg: dict, system: str, messages: list, max_tokens: int
     yield "data: [DONE]\n\n"
 
 
+
+async def _stream_gemini(cfg: dict, system: str, messages: list, max_tokens: int = 2000):
+    """
+    Stream from Google Gemini API (streamGenerateContent with SSE).
+
+    Endpoint: POST {base}/{model}:streamGenerateContent?alt=sse&key={api_key}
+    SSE chunks: {"candidates":[{"content":{"parts":[{"text":"..."}]}}]}
+    """
+    base    = cfg.get("base_url", "https://generativelanguage.googleapis.com/v1beta/models").rstrip("/")
+    model   = cfg["model"]
+    api_key = cfg["key"]
+    url     = f"{base}/{model}:streamGenerateContent?alt=sse&key={api_key}"
+
+    # Convert messages to Gemini contents format
+    contents = []
+    for m in messages:
+        role = "user" if m["role"] == "user" else "model"
+        contents.append({"role": role, "parts": [{"text": m["content"]}]})
+
+    payload = {
+        "contents": contents,
+        "systemInstruction": {"parts": [{"text": system}]},
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": 0.7,
+        },
+    }
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            async with client.stream("POST", url, headers=headers, json=payload) as resp:
+                if resp.status_code != 200:
+                    body = await resp.aread()
+                    err  = body.decode(errors="replace")
+                    try:
+                        err_msg = json.loads(err).get("error", {}).get("message", err[:300])
+                    except Exception:
+                        err_msg = err[:300]
+                    msg = f"\u26a0\ufe0f Gemini API\u9519\u8bef({resp.status_code}): {err_msg}"
+                    yield "data: " + json.dumps({"text": msg}, ensure_ascii=False) + "\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if not data or data == "[DONE]":
+                        break
+                    try:
+                        ev   = json.loads(data)
+                        text = (ev.get("candidates", [{}])[0]
+                                  .get("content", {})
+                                  .get("parts", [{}])[0]
+                                  .get("text", ""))
+                        if text:
+                            yield "data: " + json.dumps({"text": text}, ensure_ascii=False) + "\n\n"
+                    except Exception:
+                        pass
+    except Exception as e:
+        msg = f"\u26a0\ufe0f \u7f51\u7edc\u9519\u8bef: {type(e).__name__}: {str(e)[:200]}"
+        yield "data: " + json.dumps({"text": msg}, ensure_ascii=False) + "\n\n"
+    yield "data: [DONE]\n\n"
+
+
 async def _stream_llm(cfg: dict, system: str, messages: list, max_tokens: int = 2000):
     """Dispatch to the right streaming function based on provider style."""
     if not cfg["key"]:
@@ -171,6 +277,9 @@ async def _stream_llm(cfg: dict, system: str, messages: list, max_tokens: int = 
 
     if cfg["style"] == "anthropic":
         async for chunk in _stream_anthropic(cfg, system, messages, max_tokens):
+            yield chunk
+    elif cfg["style"] == "gemini":
+        async for chunk in _stream_gemini(cfg, system, messages, max_tokens):
             yield chunk
     else:
         async for chunk in _stream_openai(cfg, system, messages, max_tokens):
@@ -192,6 +301,7 @@ class BaziAgentRequest(BaseModel):
     gender: str = "male"
     question: Optional[str] = None
     focus:    Optional[str] = None
+    precomputed: Optional[Dict[str, Any]] = None  # frontend pre-computed chart data
 
 
 class LiuyaoAgentRequest(BaseModel):
@@ -199,6 +309,7 @@ class LiuyaoAgentRequest(BaseModel):
     yao_values: Optional[List[int]] = None
     question:   str = ""
     query_time: Optional[str] = None
+    precomputed: Optional[Dict[str, Any]] = None  # frontend pre-computed divination data
 
 
 class QimenAgentRequest(BaseModel):
@@ -206,6 +317,7 @@ class QimenAgentRequest(BaseModel):
     day:  Optional[int] = None; hour:  Optional[int] = None
     minute: int = 0
     question: str = ""
+    precomputed: Optional[Dict[str, Any]] = None  # frontend pre-computed qimen layout
 
 
 class FengShuiAgentRequest(BaseModel):
@@ -213,6 +325,7 @@ class FengShuiAgentRequest(BaseModel):
     gender:        str = "male"
     house_facing:  str
     question:      Optional[str] = None
+    precomputed: Optional[Dict[str, Any]] = None  # frontend pre-computed fengshui data
 
 
 # ─────────────────────────────────────────────────────────────
@@ -263,6 +376,14 @@ async def consult(req: ConsultRequest, request: Request):
     content  = req.question
     if req.context:
         content = f"【已知数据】\n{json.dumps(req.context, ensure_ascii=False, indent=2)}\n\n【问题】\n{req.question}"
+    # RAG: inject relevant classical passages
+    try:
+        from knowledge.rag import get_rag
+        rag_ctx = get_rag().search_and_format(req.question, top_k=5)
+        if rag_ctx:
+            content = rag_ctx + "\n\n" + content
+    except Exception:
+        pass
     messages.append({"role": "user", "content": content})
     return _sse_response(_stream_llm(cfg, MASTER_SYSTEM, messages, 2000), cfg)
 
@@ -275,9 +396,16 @@ async def bazi_agent(req: BaziAgentRequest, request: Request):
     from core.bazi.analyzer import analyze_chart
     from core.bazi.forecaster import calculate_dayun
 
-    chart = build_chart(req.year, req.month, req.day, req.hour, req.minute)
-    analyze_chart(chart)
-    dayun = calculate_dayun(chart, req.gender, req.year, num_periods=5)
+    # Use pre-computed chart from frontend if available, otherwise recompute
+    if req.precomputed and req.precomputed.get("day_master"):
+        chart = req.precomputed
+        dayun = chart.get("dayun", []) or []
+        if not dayun:
+            dayun = calculate_dayun(chart, req.gender, req.year, num_periods=5)
+    else:
+        chart = build_chart(req.year, req.month, req.day, req.hour, req.minute)
+        analyze_chart(chart)
+        dayun = calculate_dayun(chart, req.gender, req.year, num_periods=5)
 
     dm = chart["day_master"]
     summary = {
@@ -296,6 +424,13 @@ async def bazi_agent(req: BaziAgentRequest, request: Request):
 
     # Load classical rules for this day master + birth month
     classical_ctx = ""
+    # RAG: dynamically retrieve most relevant classical passages
+    try:
+        from knowledge.rag import get_rag
+        bazi_query = f"{dm}日主 {chart.get('pattern','')} {req.question or ''} 八字格局用神"
+        classical_ctx = get_rag().search_and_format(bazi_query, top_k=6, header="\n\n【古籍精华】")
+    except Exception:
+        pass
     try:
         from knowledge.bazi_classical import TIAO_HOU_TABLE, SHIGAN_JIJUE, RIZHUPAN_RULES, BAZIGE_SYSTEM
         month_dz = chart["month_pillar"]["dizhi"]
@@ -339,21 +474,24 @@ async def liuyao_agent(req: LiuyaoAgentRequest, request: Request):
     from core.liuyao.divination import coin_divination, yarrow_divination, time_divination, manual_divination
     from core.liuyao.interpreter import interpret
 
-    method = req.method.lower()
-    if method == "coin":      result = coin_divination(req.yao_values)
-    elif method == "yarrow":  result = yarrow_divination()
-    elif method == "time":
-        dt = datetime.fromisoformat(req.query_time) if req.query_time else None
-        result = time_divination(dt)
-    elif method == "manual":
-        if not req.yao_values or len(req.yao_values) != 6:
-            raise HTTPException(400, "manual方法需提供6个爻值(6/7/8/9)")
-        result = manual_divination(req.yao_values)
+    # Use pre-computed divination result from frontend if available
+    if req.precomputed and req.precomputed.get("original"):
+        interp = req.precomputed
     else:
-        raise HTTPException(400, f"不支持: {method}")
-
-    # Apply full classical analysis (now uses liuyao_classical.py rules)
-    interp  = interpret(result, req.question)
+        method = req.method.lower()
+        if method == "coin":      result = coin_divination(req.yao_values)
+        elif method == "yarrow":  result = yarrow_divination()
+        elif method == "time":
+            dt = datetime.fromisoformat(req.query_time) if req.query_time else None
+            result = time_divination(dt)
+        elif method == "manual":
+            if not req.yao_values or len(req.yao_values) != 6:
+                raise HTTPException(400, "manual方法需提供6个爻值(6/7/8/9)")
+            result = manual_divination(req.yao_values)
+        else:
+            raise HTTPException(400, f"不支持: {method}")
+        # Apply full classical analysis
+        interp  = interpret(result, req.question)
     orig    = interp["original"]
     changed = interp.get("changed")
     yaos    = interp.get("yaos", [])
@@ -385,6 +523,15 @@ async def liuyao_agent(req: LiuyaoAgentRequest, request: Request):
 
     # Load relevant classical rules for this topic
     classical_context = ""
+    # RAG: retrieve relevant liuyao passages
+    try:
+        from knowledge.rag import get_rag
+        lx_query = f"六爻 {topic} 用神 {req.question}"
+        rag_ctx = get_rag().search_and_format(lx_query, top_k=5, header="【古籍精华】")
+        if rag_ctx:
+            classical_context = rag_ctx + "\n"
+    except Exception:
+        pass
     try:
         from knowledge.liuyao_classical import LIUYAO_TOPIC_RULES, LIUYAO_CLASSICAL_RULES
         topic_rule = LIUYAO_TOPIC_RULES.get(topic, {})
@@ -429,9 +576,13 @@ async def qimen_agent(req: QimenAgentRequest, request: Request):
     from core.qimen.analyzer import analyze_qimen
 
     now = datetime.now()
-    layout   = calculate_qimen(req.year or now.year, req.month or now.month,
-                               req.day or now.day, req.hour if req.hour is not None else now.hour, req.minute)
-    analysis = analyze_qimen(layout)
+    if req.precomputed and req.precomputed.get("palaces"):
+        layout = req.precomputed
+        analysis = layout.get("analysis") or {}
+    else:
+        layout   = calculate_qimen(req.year or now.year, req.month or now.month,
+                                   req.day or now.day, req.hour if req.hour is not None else now.hour, req.minute)
+        analysis = analyze_qimen(layout)
 
     summary = {
         "时间": f"{req.year or now.year}年{req.month or now.month}月{req.day or now.day}日{req.hour if req.hour is not None else now.hour}时",
@@ -445,6 +596,13 @@ async def qimen_agent(req: QimenAgentRequest, request: Request):
     }
     # Load classical qimen context
     classical_ctx = ""
+    # RAG: retrieve relevant qimen passages
+    try:
+        from knowledge.rag import get_rag
+        qm_query = f"奇门遁甲 {req.question} 三奇六仪 门星神"
+        classical_ctx = get_rag().search_and_format(qm_query, top_k=5, header="\n\n【古籍精华】")
+    except Exception:
+        pass
     try:
         from knowledge.qimen_classical import BA_MEN_DETAIL, JIU_XING_DETAIL, YANBO_JIJUE, QIMEN_GEJV
         # Find most relevant palace (highest auspicious)
@@ -487,19 +645,38 @@ async def fengshui_agent(req: FengShuiAgentRequest, request: Request):
         check_compatibility, get_sector_analysis,
     )
 
-    ming_gua    = calculate_ming_gua(req.birth_year, req.gender)
-    house_gua   = get_house_gua(req.house_facing)
-    compat      = check_compatibility(ming_gua, house_gua)
-    sectors     = get_sector_analysis(house_gua)
-
-    summary = {
-        "命卦": f"{ming_gua}（{get_ming_gua_group(ming_gua)}）",
-        "宅卦": f"{house_gua}（{get_house_group(house_gua)}）",
-        "命宅相配": compat,
-        "八方": [{"方":s["direction"],"星":s["star"],"吉凶":s["quality"],"含义":s["meaning"]} for s in sectors],
-    }
+    if req.precomputed and req.precomputed.get("ming_gua"):
+        pre = req.precomputed
+        ming_gua = pre.get("ming_gua", calculate_ming_gua(req.birth_year, req.gender))
+        house_gua = pre.get("house_gua", get_house_gua(req.house_facing))
+        compat    = pre.get("compatibility", "")
+        sectors   = pre.get("sectors", [])
+        summary   = {
+            "命卦": f"{ming_gua}（{pre.get('ming_gua_group', get_ming_gua_group(ming_gua))}）",
+            "宅卦": f"{house_gua}（{pre.get('house_group', get_house_group(house_gua))}）",
+            "命宅相配": compat,
+            "八方": [{"方":s.get("direction",""),"星":s.get("star",""),"吉凶":s.get("quality",""),"含义":s.get("meaning","")} for s in sectors],
+        }
+    else:
+        ming_gua    = calculate_ming_gua(req.birth_year, req.gender)
+        house_gua   = get_house_gua(req.house_facing)
+        compat      = check_compatibility(ming_gua, house_gua)
+        sectors     = get_sector_analysis(house_gua)
+        summary = {
+            "命卦": f"{ming_gua}（{get_ming_gua_group(ming_gua)}）",
+            "宅卦": f"{house_gua}（{get_house_group(house_gua)}）",
+            "命宅相配": compat,
+            "八方": [{"方":s["direction"],"星":s["star"],"吉凶":s["quality"],"含义":s["meaning"]} for s in sectors],
+        }
     # Load classical fengshui context
     classical_ctx = ""
+    # RAG: retrieve relevant fengshui passages
+    try:
+        from knowledge.rag import get_rag
+        fs_query = f"风水八宅 命卦宅卦 {req.question or ''} 四吉四凶"
+        classical_ctx = get_rag().search_and_format(fs_query, top_k=5, header="\n\n【古籍精华】")
+    except Exception:
+        pass
     try:
         from knowledge.fengshui_classical import YANGZHAI_THREE, BAYUAN_JIUXING, XUANKONG_THEORY
         # Get relevant sector info
@@ -601,6 +778,17 @@ INTERPRET_SYSTEMS = {
 5. **时辰选择**：建议配合吉日使用的吉时
 
 给出3-5个最佳日期的具体推荐，注明理由，用中文回答。""",
+
+    "ziwei": """你是精通紫微斗数的AI命理师，深研《紫微斗数全书》《斗数宣微》《紫微斗数讲义》。
+
+分析框架：
+1. **命宫主星格局**：命宫主星（单星/双星）亮度与四化，确定格局高下
+2. **三方四正**：命迁财官四宫综合，论财运事业婚姻
+3. **身宫辅助**：身宫主星的补充意义
+4. **四化飞星**：禄权科忌四化落宫的具体影响
+5. **大限小限**：当前大限宫位与本命关系，流年冲会
+
+语言专业而亲切，引用古籍，用中文回答。""",
 
     "knowledge": """你是中国传统命理学的AI学术顾问，精通八字、六爻、奇门、风水、择日五大体系。
 

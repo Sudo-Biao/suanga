@@ -56,6 +56,12 @@ export const fengshuiApi = {
   analysis: (req) => post('/api/v1/fengshui/analysis', req),
 };
 
+// ── ZiWei ────────────────────────────────────────────
+export const ziweiApi = {
+  chart: (req) => post('/api/v1/ziwei/chart', req),
+  hours: ()    => get('/api/v1/ziwei/hours'),
+};
+
 // ── DateSelection ─────────────────────────────────────────
 export const dateApi = {
   select: (req) => post('/api/v1/date-selection/select', req),

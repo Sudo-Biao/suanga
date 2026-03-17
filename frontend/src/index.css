@@ -390,10 +390,10 @@ select{cursor:pointer;}textarea{resize:vertical;min-height:78px;}
   margin-bottom:1.4rem;overflow-x:auto;background:transparent;}
 .tab-bar::-webkit-scrollbar{height:2px;}
 .tab{padding:0.6rem 1.1rem;border:none;border-bottom:2px solid transparent;
-  background:transparent;color:var(--text-muted);font-size:var(--text-sm);font-weight:500;
+  background:transparent;color:var(--text-secondary);font-size:var(--text-sm);font-weight:500;
   cursor:pointer;transition:all var(--t-fast);font-family:var(--font-sans);
   white-space:nowrap;letter-spacing:0.02em;margin-bottom:-1.5px;}
-.tab:hover{color:var(--text-secondary);}
+.tab:hover{color:var(--text-primary);}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
 
 /* ════════════════════ PALACE GRID ════════════════════ */

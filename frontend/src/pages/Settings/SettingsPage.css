@@ -137,7 +137,7 @@
 .sp-theme-btn {
   padding:0.45rem 1rem; border-radius:var(--r-sm);
   border:1.5px solid var(--border); background:var(--surface);
-  font-size:var(--text-sm); cursor:pointer; color:var(--text-muted);
+  font-size:var(--text-sm); cursor:pointer; color:var(--text-secondary);
   transition:all var(--t-fast); font-weight:500;
 }
 .sp-theme-btn:hover { border-color:var(--border-hover); color:var(--text-primary); }

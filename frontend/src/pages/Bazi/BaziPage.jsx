@@ -93,8 +93,8 @@ export default function BaziPage() {
                       padding:'0.52rem 0.75rem', borderRadius:'var(--r-md)',
                       border:`1px solid ${tab===t.id?'var(--accent-dim)':'transparent'}`,
                       background:tab===t.id?'var(--accent-bg)':'transparent',
-                      color:tab===t.id?'var(--accent)':'var(--text-muted)',
-                      fontSize:'var(--text-sm)', fontWeight:tab===t.id?600:400,
+                      color:tab===t.id?'var(--accent)':'var(--text-secondary)',
+                      fontSize:'var(--text-sm)', fontWeight:tab===t.id?600:500,
                       cursor:'pointer', textAlign:'left', transition:'all var(--t-fast)',
                     }}>{t.label}</button>
                 ))}

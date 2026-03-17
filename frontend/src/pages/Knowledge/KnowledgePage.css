@@ -86,7 +86,7 @@
 ══════════════════════════════════════════════════════════════════ */
 .kp-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
 }
 
@@ -108,7 +108,7 @@
 
 /* ── Card preview (image area) ── */
 .kp-card-preview {
-  position: relative; height: 118px;
+  position: relative; height: 126px;
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
 }
@@ -201,7 +201,7 @@
   font-size: var(--text-xs); color: var(--text-muted);
   line-height: 1.7; font-family: var(--font-serif);
   margin: 0; flex: 1;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 
 .kp-card-footer {
@@ -222,12 +222,12 @@
   position: fixed; inset: 0; z-index: 500;
   background: rgba(28,16,8,0.55); backdrop-filter: blur(4px);
   display: flex; align-items: flex-start; justify-content: center;
-  padding: 2rem 1rem; overflow-y: auto;
+  padding: 2vh 1rem; overflow-y: auto; align-items: flex-start;
   animation: fadeIn 0.18s ease;
 }
 
 .kp-modal {
-  background: var(--surface); width: 100%; max-width: 780px;
+  background: var(--surface); width: 100%; max-width: min(92vw, 1200px);
   border-radius: 18px; overflow: hidden;
   box-shadow: 0 24px 80px rgba(28,16,8,0.25), 0 4px 16px rgba(28,16,8,0.12);
   animation: slideUp 0.22s cubic-bezier(0.4,0,0.2,1);
@@ -269,12 +269,12 @@
 .kp-modal-close:hover { background: rgba(255,255,255,0.3); }
 
 .kp-modal-body {
-  padding: 1.5rem 1.75rem 2rem; max-height: 70vh; overflow-y: auto;
+  padding: 1.5rem 1.75rem 2rem; max-height: calc(100vh - 16rem); overflow-y: auto;
 }
 
 /* ── Data cards inside modal ── */
 .kp-data-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 0.75rem;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem;
 }
 .kp-data-card {
   background: var(--bg-subtle); border: 1px solid var(--border);
@@ -342,7 +342,7 @@
 }
 
 /* ── Responsive ── */
-@media (max-width: 1100px) { .kp-grid { grid-template-columns: repeat(2, 1fr); } }
+/* Grid is now auto-fill responsive — no manual breakpoint needed */
 @media (max-width: 700px)  {
   .kp-grid { grid-template-columns: 1fr; }
   .kp-body { padding: 1rem; }
@@ -365,6 +365,7 @@
 }
 .kp-modal-body {
   padding: 1.6rem 1.85rem 2rem;
+  max-height: calc(100vh - 14rem);
 }
 
 /* ── Better data display for strings with Chinese text ── */

@@ -35,6 +35,18 @@ const COMPASS_CELLS = [
   ['西南', '南', '东南'],
 ]
 
+// Pinyin key → display name (吉/凶 label + Chinese name)
+const PERSONAL_DIR_NAMES = {
+  shengqi:  { zh:'生气', good:true  },
+  tianyi:   { zh:'天医', good:true  },
+  niannian: { zh:'延年', good:true  },
+  fuwei:    { zh:'伏位', good:true  },
+  jueming:  { zh:'绝命', good:false },
+  wugui:    { zh:'五鬼', good:false },
+  liusha:   { zh:'六煞', good:false },
+  huohai:   { zh:'祸害', good:false },
+}
+
 export default function FengShuiPage() {
   const [form, setForm]   = useState({ birth_year:1990, gender:'male', house_facing:'南' })
   const [result, setResult] = useState(null)
@@ -265,21 +277,31 @@ export default function FengShuiPage() {
                       <div className="card-title">流年紫白飞星分布</div>
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'4px', maxWidth:'380px', margin:'0 auto 1rem' }}>
                         {COMPASS_CELLS.flat().map(dir => {
-                          const starNum = flyingStars[dir] || flyingStars[dir === '中' ? '中' : dir]
-                          const meta = STAR_META[starNum]
-                          if (!meta) return <div key={dir} style={{ aspectRatio:'1', background:'var(--bg-subtle)', borderRadius:'var(--r-md)', border:'1px solid var(--border)' }}/>
+                          const _starEntry = flyingStars[dir]
+          const starNum = _starEntry ? (typeof _starEntry === 'object' ? _starEntry.star_num : _starEntry) : null
+          // Use rich data from entry if available
+          const _starName  = _starEntry?.name  || null
+          const _starColor = _starEntry?.color || null
+          const _starNature = _starEntry?.nature || null
+          const _starMeaning = _starEntry?.meaning || null
+                          const displayColor  = _starColor  || (STAR_META[starNum]?.color  || 'var(--text-muted)')
+                          const displayName   = _starName   ? _starName.replace(/[星]$/, '').slice(-2) : (STAR_META[starNum]?.name || '?')
+                          const displayNature = _starNature || STAR_META[starNum]?.nature || ''
+                          const displayWuxing = (_starEntry?.element) || STAR_META[starNum]?.wuxing || ''
+                          const natColor = displayNature.includes('大凶') ? 'var(--accent)' : displayNature === '凶' ? 'var(--orange)' : displayNature.includes('吉') ? 'var(--jade)' : 'var(--text-muted)'
+                          if (!starNum) return <div key={dir} style={{ aspectRatio:'1', background:'var(--bg-subtle)', borderRadius:'var(--r-sm)', border:'1px solid var(--border)' }}/>
                           return (
                             <div key={dir} style={{
                               aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center',
-                              justifyContent:'center', padding:'0.4rem',
-                              background: `${meta.color}12`,
-                              border:`1.5px solid ${meta.color}45`,
-                              borderRadius:'var(--r-md)', textAlign:'center',
+                              justifyContent:'center', padding:'0.35rem',
+                              background: `${displayColor}14`,
+                              border:`1.5px solid ${displayColor}40`,
+                              borderRadius:'var(--r-sm)', textAlign:'center',
                             }}>
-                              <div style={{ fontSize:'var(--text-xs)', color:'var(--text-faint)', fontFamily:'var(--font-mono)', marginBottom:'2px' }}>{dir}</div>
-                              <div style={{ fontFamily:'var(--font-display)', fontSize:'1.6rem', color:meta.color, lineHeight:1 }}>{meta.icon}</div>
-                              <div style={{ fontSize:'var(--text-xs)', color:meta.color, fontWeight:700, marginTop:'2px' }}>{meta.name}</div>
-                              <div style={{ fontSize:'9px', color:'var(--text-faint)' }}>{meta.wuxing}</div>
+                              <div style={{ fontSize:'9px', color:'var(--text-faint)', fontFamily:'var(--font-mono)', marginBottom:'1px' }}>{dir}</div>
+                              <div style={{ fontFamily:'var(--font-display)', fontSize:'1.45rem', color:displayColor, lineHeight:1 }}>{starNum}</div>
+                              <div style={{ fontSize:'10px', color:displayColor, fontWeight:700, marginTop:'1px' }}>{displayName}</div>
+                              <div style={{ fontSize:'8.5px', color:natColor }}>{displayNature}</div>
                             </div>
                           )
                         })}
@@ -331,8 +353,14 @@ export default function FengShuiPage() {
                         绝命·五鬼·六煞·祸害为四凶方（忌床位·大门·久坐）。
                       </p>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' }}>
-                        {Object.entries(personalDirs).map(([dirKey, dirInfo]) => {
-                          const isGood = ['生气','天医','延年','伏位'].some(k => dirKey.includes(k) || (dirInfo?.name||'').includes(k))
+                        {Object.entries(personalDirs)
+                          .filter(([k]) => PERSONAL_DIR_NAMES[k])
+                          .map(([dirKey, dirInfo]) => {
+                          const pdMeta   = PERSONAL_DIR_NAMES[dirKey] || {}
+                          const isGood   = pdMeta.good === true
+                          const label    = pdMeta.zh || dirKey
+                          const dirLabel = dirInfo?.direction || ''
+                          const desc     = dirInfo?.meaning || dirInfo?.description || ''
                           return (
                             <div key={dirKey} style={{
                               padding:'0.65rem 0.85rem',
@@ -342,12 +370,12 @@ export default function FengShuiPage() {
                             }}>
                               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'0.3rem' }}>
                                 <span style={{ fontWeight:700, color: isGood?'var(--jade)':'var(--accent)', fontSize:'var(--text-sm)' }}>
-                                  {dirKey}
+                                  {label}
                                 </span>
-                                <span style={{ fontSize:'var(--text-xs)', color:'var(--text-muted)' }}>{dirInfo?.direction || dirInfo?.方位}</span>
+                                <span style={{ fontSize:'var(--text-xs)', color:'var(--text-muted)', fontFamily:'var(--font-serif)' }}>{dirLabel}</span>
                               </div>
                               <p style={{ fontSize:'var(--text-xs)', color:'var(--text-muted)', fontFamily:'var(--font-serif)', lineHeight:1.6, margin:0 }}>
-                                {dirInfo?.description || dirInfo?.说明 || dirInfo?.含义}
+                                {desc}
                               </p>
                             </div>
                           )

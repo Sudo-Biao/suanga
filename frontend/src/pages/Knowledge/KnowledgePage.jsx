@@ -447,6 +447,66 @@ const CATALOG = [
     desc: '起卦七法详解·体用精义（克生比和）·互卦变卦·时间应验·邵雍折花案·梅花观雀案经典。',
     endpoint: '/api/v1/knowledge/advanced/meihua-deep',
   },
+
+  // ── 紫微斗数（新增）──
+  {
+    id: 'ziwei_basics', category: '高级系统', icon: '紫', iconBg: 'linear-gradient(135deg,#6a3d8a 0%,#4a1e6a 100%)',
+    title: '紫微斗数基础体系', titleEn: 'ZiWei Foundations',
+    source: '陈希夷《紫微斗数全书》', tags: ['五行局','十二宫','排盘'], level: '中级', levelNum: 2,
+    desc: '五行局（水木金土火）定起点，十二宫位分布，命宫三方四正为核心，四化飞星论吉凶，大限小限流年三层推进体系。',
+    endpoint: '/api/v1/knowledge/advanced/ziwei',
+  },
+  {
+    id: 'ziwei_14stars', category: '高级系统', icon: '星', iconBg: 'linear-gradient(135deg,#6a3d8a 0%,#8e44ad 100%)',
+    title: '十四主星完整论断', titleEn: '14 Major Stars Analysis',
+    source: '《紫微斗数全书》《斗数宣微》', tags: ['主星','坐命','四化','亮度'], level: '高级', levelNum: 3,
+    desc: '紫微至破军十四主星：五行属性·化气·坐命性格·事业方向·感情特征·四化吉凶·健康注意事项完整论述。',
+    endpoint: '/api/v1/knowledge/advanced/ziwei-deep',
+  },
+  {
+    id: 'ziwei_sihua', category: '高级系统', icon: '化', iconBg: 'linear-gradient(135deg,#4a1e6a 0%,#7b2d9f 100%)',
+    title: '四化入十二宫详解', titleEn: 'Four Transformations in 12 Palaces',
+    source: '《飞星四化》《斗数演例》', tags: ['化禄','化权','化科','化忌'], level: '精通', levelNum: 4,
+    desc: '化禄·化权·化科·化忌四化各自飞入命宫、财帛、官禄、夫妻等十二宫的具体意象与断法，自化忌特论。',
+    endpoint: '/api/v1/knowledge/advanced/ziwei-deep',
+  },
+  // ── 择日（新增）──
+  {
+    id: 'jishi', category: '实战断法', icon: '时', iconBg: 'linear-gradient(135deg,#b85c00 0%,#e89040 100%)',
+    title: '吉时推算完整法', titleEn: 'Auspicious Hour Calculation',
+    source: '《协纪辨方书》《奇门遁甲》', tags: ['黄道时','五鼠遁','奇门三吉'], level: '中级', levelNum: 2,
+    desc: '五虎遁年起月·五鼠遁日起时，黄道六吉时（青龙明堂金匮天德玉堂司命），黑道六凶时，奇门三吉门择时法。',
+    endpoint: '/api/v1/knowledge/practical/zeri',
+  },
+  {
+    id: 'yueling_yiji', category: '实战断法', icon: '月', iconBg: 'linear-gradient(135deg,#1e5c96 0%,#4a9ee0 100%)',
+    title: '十二月令宜忌速查', titleEn: 'Monthly Taboos',
+    source: '《协纪辨方书》《月令》', tags: ['月令','三煞方','月德','宜忌'], level: '入门', levelNum: 1,
+    desc: '正月至十二月各月令宜忌、三煞方位、月德月德合，五月毒月忌嫁娶，九月三煞北方等实用速查表。',
+    endpoint: '/api/v1/knowledge/practical/zeri',
+  },
+  // ── 风水（新增）──
+  {
+    id: 'xuankong_detail', category: '风水地理', icon: '飞', iconBg: 'linear-gradient(135deg,#1e5c96 0%,#2878c0 100%)',
+    title: '玄空飞星排盘详论', titleEn: 'Xuan Kong Flying Stars Detailed',
+    source: '《沈氏玄空学》《玄空真解》', tags: ['飞星','旺山旺向','五黄','催财'], level: '精通', levelNum: 4,
+    desc: '旺山旺向·上山下水·双星到向格局判断，五黄二黑煞方，九运（2024-2043）坐北向南当令，催财催丁布局方法。',
+    endpoint: '/api/v1/knowledge/classical/fengshui-extended',
+  },
+  {
+    id: 'xingshi_detail', category: '风水地理', icon: '脉', iconBg: 'linear-gradient(135deg,#1a7a52 0%,#116640 100%)',
+    title: '形家风水觅龙察砂', titleEn: 'Landscape Feng Shui Detailed',
+    source: '《葬经》郭璞·《地理五诀》', tags: ['觅龙','察砂','观水','点穴'], level: '精通', levelNum: 4,
+    desc: '龙脉五星体·行龙十格，砂的吉凶格（青龙蜿蜒白虎驯顺），水格论财（玉带水朝水），点穴四格（窝钳乳突）。',
+    endpoint: '/api/v1/knowledge/advanced/xingshi',
+  },
+  {
+    id: 'jiuyun_zeri', category: '风水地理', icon: '运', iconBg: 'linear-gradient(135deg,#b5361e 0%,#9a2410 100%)',
+    title: '三元九运择日布局', titleEn: 'Nine Cycles Date Selection',
+    source: '《沈氏玄空学》《紫白诀》', tags: ['九运','2024-2043','飞星择日'], level: '高级', levelNum: 3,
+    desc: '2024年九运起，离火（南方）当令，坐北向南为旺山旺向；2026年五黄入中宫，各飞星方位宜忌，配合三元九运择日布局。',
+    endpoint: '/api/v1/knowledge/classical/fengshui-extended',
+  },
 ]
 
 const CATEGORIES = ['全部', '基础理论', '天干地支', '八卦易学', '星宿天文', '十神神煞', '四柱命理', '六爻占卜', '奇门遁甲', '风水地理', '高级系统', '实战断法', '深度专题']
